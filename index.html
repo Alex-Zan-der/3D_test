@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <style>
+      .axis line {
+          fill: none;
+          stroke: black;
+          shape-rendering: crispEdges;
+          stroke-width: 1.1;
+          opacity: .2
+      }
+      
+      .x.axis path {
+          opacity: 0
+      }
+      
+      .y.axis path {
+          opacity: 0
+      }
+      
+      .x.axis text {
+          opacity: 0
+      }
+      
+      .y.axis text {
+          font-family: Georgia;
+          font-size: 14px;
+          opacity: .7
+      }
+    </style>
+  </head>
+  <body>
+    <script src="http://d3js.org/d3.v3.min.js" charset="utf-8"></script>
+    <script>
+      var width = 800,
+          height = 500;
+      
+      var svg = d3.select('body').append('svg');
+      
+      var x = d3.time.scale().range([0, width]),
+          y = d3.scale.linear().range([height-10, 0]),
+          z = d3.scale.category10() //ordinal().range(colorbrewer['Blues'][6]);
+      
+      var format = d3.time.format('%m/%d/%y');
+      
+      function prepareData(data) {
+          data.forEach(function (d) {
+              d.date = format.parse(d.date);
+              d.value = +d.value;
+          });
+          
+          var nest = d3.nest()
+              .key(function (d) { return d.key });
+          
+          var stack = d3.layout.stack().offset('silhouette')
+              .values(function (d) { return d.values })
+              .x(function (d) { return d.date })
+              .y(function (d) { return d.value });
+          
+          return stack(nest.entries(data));
+      }
+      
+      d3.csv('//nemetz.devg.ru/d3/stream.csv', function (data) {
+          var layers = prepareData(data);
+          
+          x.domain(d3.extent(data, function (d) { return d.date }));
+          y.domain([0, d3.max(data, function (d) { return d.y0 + d.y })]);
+          
+          var area = d3.svg.area()
+              .interpolate('monotone')
+              .x(function (d) { return x(d.date) })
+              .y0(function (d) { return y(d.y0) })
+              .y1(function (d) { return y(d.y0 + d.y) });
+      
+          svg.selectAll('.layer')
+              .data(layers)
+              .enter()
+              .append('path')
+              .attr('class', 'layer')
+              .attr('d', function (d) { return area(d.values) })
+              .attr('stroke', 'white')
+              .attr('fill', function (d, i) { return z(i) })
+              .attr('opacity', .75);
+          
+          var xAxis = d3.svg.axis()
+              .scale(x)
+              .orient('top')
+              .tickSize(20)
+              .ticks(100);
+              
+          var yAxis = d3.svg.axis()
+              .scale(y)
+              .orient('left')
+              .tickSize(20)
+              .ticks(10);
+          
+          svg.append('g')
+              .attr('class', 'x axis')
+              .attr('transform', 'translate(60, 260)')
+              .call(xAxis);
+          
+          svg.append('g')
+              .attr('class', 'y axis')
+              .attr('transform', 'translate(50, 0)')
+              .call(yAxis);
+         
+              
+      });
+    </script>
+    
+  </body>
+</html>
